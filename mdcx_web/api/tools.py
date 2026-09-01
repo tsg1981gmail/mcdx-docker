@@ -21,7 +21,7 @@ TOOLS_INDEX = [
     {"key": "move_videos", "name": "移动视频、字幕", "ready": True},
     {"key": "symlink_helper", "name": "软链接助手", "ready": True},
     {"key": "actor_db", "name": "演员库维护", "ready": True},
-    {"key": "cover_backfill", "name": "封面补图", "ready": False},
+    {"key": "cover_backfill", "name": "封面补图", "ready": True},
     {"key": "scrape_cache", "name": "刮削缓存管理（断点续刮/失败重试）", "ready": True},
     {"key": "sync_gfriends", "name": "Gfriends 同步", "ready": True},
 ]
@@ -257,6 +257,56 @@ async def missing(req: MissingRequest):
         return {"log_lines": len(logs), "logs": logs[-150:]}
 
     tid = await start_task("tools", "检查演员缺失番号", worker)
+    if tid is None:
+        return {"ok": False, "error": "已有任务在运行"}
+    return {"ok": True, "task_id": tid}
+
+
+# ---------- 封面补图（原版脚本 backfill_cover，按番号补齐海报/缩略图）----------
+class CoverBackfillRequest(BaseModel):
+    numbers: str = ""
+    overwrite: bool = False
+    watermark: bool = True
+
+
+@router.post("/cover-backfill")
+async def cover_backfill(req: CoverBackfillRequest):
+    from mdcx.config.manager import manager
+    from mdcx.signals import signal
+
+    number_list = [n.strip() for n in req.numbers.replace(",", " ").split() if n.strip()]
+    if not number_list:
+        return {"ok": False, "error": "请输入番号"}
+    logs: list[str] = []
+
+    async def worker(_task, stop):
+        from scripts.cover_backfill import backfill_cover
+
+        orig = signal.show_log_text
+        def cap(text: str) -> None:
+            logs.append(text)
+            orig(text)
+        signal.show_log_text = cap
+        try:
+            results = []
+            for number in number_list:
+                if stop.is_set():
+                    break
+                cap(f"开始补图: {number}")
+                try:
+                    result = await backfill_cover(
+                        number, output_dir=manager.data_folder,
+                        overwrite=req.overwrite, watermark=req.watermark,
+                    )
+                    results.append({"number": number, "result": result})
+                except Exception as exc:  # noqa: BLE001
+                    cap(f"补图失败 {number}: {exc}")
+                    results.append({"number": number, "result": None, "error": str(exc)})
+        finally:
+            signal.show_log_text = orig
+        return {"results": results, "log_lines": len(logs), "logs": logs[-150:]}
+
+    tid = await start_task("tools", f"封面补图 {len(number_list)} 部", worker)
     if tid is None:
         return {"ok": False, "error": "已有任务在运行"}
     return {"ok": True, "task_id": tid}

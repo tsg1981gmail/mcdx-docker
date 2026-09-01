@@ -19,6 +19,36 @@
 
       <!-- 文件表格（右键菜单） -->
       <div class="table-wrap" @contextmenu.prevent="closeMenu">
+        <el-collapse style="margin-bottom:10px">
+        <el-collapse-item title="站点优先级（逐字段，对应原版「字段刮削网站」）">
+          <el-table :data="fcRows" size="small" max-height="260">
+            <el-table-column prop="field" label="字段" width="110" />
+            <el-table-column label="来源网站优先级（逗号分隔，越前越优先）" min-width="280">
+              <template #default="{ row }">
+                <el-input v-model="row.site_prority_text" size="small" placeholder="javbus,javdb,missav..." @change="fcDirty = true" />
+              </template>
+            </el-table-column>
+            <el-table-column label="语言" width="120">
+              <template #default="{ row }">
+                <el-select v-model="row.language" size="small">
+                  <el-option label="未指定" value="undefined" />
+                  <el-option label="中文简体" value="zh_cn" />
+                  <el-option label="中文繁体" value="zh_tw" />
+                  <el-option label="日文" value="jp" />
+                  <el-option label="英文" value="en" />
+                </el-select>
+              </template>
+            </el-table-column>
+            <el-table-column label="翻译" width="70">
+              <template #default="{ row }"><el-switch v-model="row.translate" size="small" @change="fcDirty = true" /></template>
+            </el-table-column>
+            <el-table-column label="跳过" width="70">
+              <template #default="{ row }"><el-switch v-model="row.skip" size="small" @change="fcDirty = true" /></template>
+            </el-table-column>
+          </el-table>
+          <el-button size="small" type="primary" style="margin-top:8px" :disabled="!fcDirty" @click="saveFieldConfig">保存字段站点优先级</el-button>
+        </el-collapse-item>
+      </el-collapse>
         <el-table :data="files" size="small" height="320" @row-contextmenu="onContext" :row-class-name="rowClass">
           <el-table-column prop="name" label="文件名称" min-width="220" show-overflow-tooltip />
           <el-table-column prop="dir" label="目录" min-width="220" show-overflow-tooltip />
@@ -90,6 +120,8 @@ const failItems = ref<any[]>([])
 const remainItems = ref<any[]>([])
 const logLines = ref<string[]>([])
 const menu = reactive({ show: false, x: 0, y: 0, file: null as any })
+const fcRows = ref<any[]>([])
+const fcDirty = ref(false)
 
 let timer: number | undefined
 
@@ -100,6 +132,33 @@ async function loadFiles() {
   const r = await api.scan(path.value)
   if (r.ok) files.value = r.items
   else alert(r.error || '读取失败')
+  loadFieldConfig()
+}
+async function loadFieldConfig() {
+  const d = await api.configGet()
+  const fc = d.data?.config?.field_configs || {}
+  fcRows.value = Object.entries(fc).map(([field, v]: any) => ({
+    field,
+    site_prority_text: (v.site_prority || []).join(','),
+    language: v.language || 'undefined',
+    translate: !!v.translate,
+    skip: !!v.skip,
+  }))
+  fcDirty.value = false
+}
+async function saveFieldConfig() {
+  const field_configs: any = {}
+  for (const row of fcRows.value) {
+    field_configs[row.field] = {
+      site_prority: row.site_prority_text.split(/[,，\s]+/).filter(Boolean),
+      language: row.language,
+      translate: row.translate,
+      skip: row.skip,
+    }
+  }
+  const r = await api.configPut({ field_configs })
+  if (!r.ok) alert(r.error || '保存失败')
+  fcDirty.value = false
 }
 async function refresh() {
   const tasks = await api.tasks()

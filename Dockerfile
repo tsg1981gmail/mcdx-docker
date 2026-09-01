@@ -29,6 +29,7 @@ WORKDIR /app
 COPY pyproject.toml README.md LICENSE ./
 COPY mdcx mdcx
 COPY resources resources
+COPY scripts/cover_backfill.py scripts/cover_backfill.py
 RUN pip install --no-cache-dir .
 
 COPY mdcx_web mdcx_web

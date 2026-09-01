@@ -6,6 +6,7 @@ legacy-novnc
 tests
 docs
 scripts
+!scripts/cover_backfill.py
 *.zip
 *.tar.gz
 __pycache__

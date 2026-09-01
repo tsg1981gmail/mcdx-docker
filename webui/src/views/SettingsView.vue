@@ -121,6 +121,66 @@
           <el-form-item label="API Key（留空不改）">
             <el-input v-model="f.emby_api_key" type="password" show-password placeholder="已设置则留空" />
           </el-form-item>
+        <el-divider content-position="left">更新模式规则</el-divider>
+          <el-form-item label="更新模式">
+            <el-select v-model="f.update_mode" style="width:180px">
+              <el-option label="A" value="a" />
+              <el-option label="B" value="b" />
+              <el-option label="C（仅文件）" value="c" />
+              <el-option label="D" value="d" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="A/B/C/D 目录">
+            <el-switch v-model="f.update_a_folder" active-text="更新A(上层)" />
+            <el-switch v-model="f.update_b_c" active-text="更新B和C(目录+文件)" style="margin-left:12px" />
+            <el-switch v-model="f.update_d_folder" active-text="创建D目录" style="margin-left:12px" />
+          </el-form-item>
+          <el-form-item label="C 文件模板">
+            <el-input v-model="f.update_c_filetemplate" />
+          </el-form-item>
+          <el-form-item label="标题模板">
+            <el-input v-model="f.update_titletemplate" />
+          </el-form-item>
+
+          <el-divider content-position="left">图片下载 / 保留</el-divider>
+          <el-form-item label="下载文件">
+            <el-select v-model="f.download_files" multiple collapse-tags style="width:100%">
+              <el-option v-for="v in DL_FILES" :key="v" :label="v" :value="v" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="保留旧文件">
+            <el-select v-model="f.keep_files" multiple collapse-tags style="width:100%">
+              <el-option v-for="v in KEEP_FILES" :key="v" :label="v" :value="v" />
+            </el-select>
+          </el-form-item>
+
+          <el-divider content-position="left">写入 NFO 的字段</el-divider>
+          <el-form-item label="NFO 字段">
+            <el-select v-model="f.nfo_include_new" multiple collapse-tags style="width:100%">
+              <el-option v-for="v in NFO_INCLUDE" :key="v" :label="v" :value="v" />
+            </el-select>
+          </el-form-item>
+
+          <el-divider content-position="left">水印设置</el-divider>
+          <el-form-item label="启用海报水印">
+            <el-switch v-model="f.poster_mark" />
+          </el-form-item>
+          <el-form-item label="水印字号">
+            <el-input-number v-model="f.mark_size" :min="1" :max="100" />
+          </el-form-item>
+
+          <el-divider content-position="left">站点自定义 URL</el-divider>
+          <el-form-item label="站点|URL（每行一个）">
+            <el-input v-model="f.site_custom" type="textarea" :rows="5" placeholder="javbus|https://我的镜像/cist" />
+          </el-form-item>
+
+          <el-divider content-position="left">API Token（留空不改）</el-divider>
+          <el-form-item label="theporndb 令牌">
+            <el-input v-model="f.theporndb_api_token" type="password" show-password placeholder="已设置则留空" />
+          </el-form-item>
+          <el-form-item label="TMDB API Key">
+            <el-input v-model="f.tmdb_api_key" type="password" show-password placeholder="已设置则留空" />
+          </el-form-item>
         </el-form>
         <el-alert type="info" :closable="false"
           title='未覆盖的配置项（图片下载/水印/更新规则/NFO字段/站点自定义URL等）请用"高级(JSON)"编辑。' />
@@ -161,7 +221,15 @@ const f = reactive<any>({
   translate_by: '', translate_llm_url: '', translate_llm_model: '', translate_llm_key: '',
   use_proxy: false, proxy: '', proxy_route_all: false,
   emby_on: false, emby_url: '', emby_api_key: '',
+  update_mode: 'c', update_a_folder: false, update_b_c: true, update_d_folder: false,
+  update_c_filetemplate: '', update_titletemplate: '',
+  download_files: [], keep_files: [], nfo_include_new: [],
+  poster_mark: false, mark_size: 20, site_custom: '',
+  theporndb_api_token: '', tmdb_api_key: '',
 })
+const DL_FILES = ['poster','thumb','fanart','extrafanart','trailer','nfo','extrafanart_extras','extrafanart_copy','theme_videos','ignore_pic_fail','ignore_youma','poster_auto_best','ignore_wuma','ignore_oumei','ignore_fc2','ignore_guochan','ignore_size']
+const KEEP_FILES = ['poster','thumb','fanart','extrafanart','trailer','nfo','extrafanart_copy','theme_videos']
+const NFO_INCLUDE = ['sorttitle','originaltitle','title_cd','outline','plot_','originalplot','outline_no_cdata','release_','releasedate','premiered','country','mpaa','customrating','year','runtime','wanted','score','criticrating','actor','actor_all','actor_tmdbid','director','series','tag','genre','actor_set','series_set','studio','maker','publisher','label','poster','cover','trailer','website']
 const siteTexts = reactive<any>({})
 
 async function load() {
@@ -194,6 +262,21 @@ async function load() {
   f.emby_on = !!c.emby_on
   f.emby_url = c.emby_url ?? ''
   f.emby_api_key = ''
+  f.update_mode = c.update_mode ?? 'c'
+  f.update_a_folder = !!c.update_a_folder
+  f.update_b_c = !!c.update_b_c
+  f.update_d_folder = !!c.update_d_folder
+  f.update_c_filetemplate = c.update_c_filetemplate ?? ''
+  f.update_titletemplate = c.update_titletemplate ?? ''
+  f.download_files = [...(c.download_files || [])]
+  f.keep_files = [...(c.keep_files || [])]
+  f.nfo_include_new = [...(c.nfo_include_new || [])]
+  f.poster_mark = !!c.poster_mark
+  f.mark_size = c.mark_size ?? 20
+  f.site_custom = Object.entries(c.site_configs || {})
+    .map(([k, v]: any) => (v?.custom_url ? `${k}|${v.custom_url}` : '')).filter(Boolean).join('\n')
+  f.theporndb_api_token = ''
+  f.tmdb_api_key = ''
   for (const g of SITE_GROUPS) siteTexts[g.key] = (c[g.key] || []).join(',')
   json.value = JSON.stringify(c, null, 2)
 }
@@ -222,6 +305,26 @@ async function saveForm() {
     }
     if (f.translate_llm_key) patch.translate_config.llm_key = f.translate_llm_key
     if (f.emby_api_key) patch.emby_api_key = f.emby_api_key
+    patch.update_mode = f.update_mode
+    patch.update_a_folder = f.update_a_folder
+    patch.update_b_c = f.update_b_c
+    patch.update_d_folder = f.update_d_folder
+    patch.update_c_filetemplate = f.update_c_filetemplate
+    patch.update_titletemplate = f.update_titletemplate
+    patch.download_files = f.download_files
+    patch.keep_files = f.keep_files
+    patch.nfo_include_new = f.nfo_include_new
+    patch.poster_mark = f.poster_mark
+    patch.mark_size = f.mark_size
+    const siteCustom: any = {}
+    for (const line of f.site_custom.split('\n')) {
+      const [k, ...rest] = line.split('|')
+      const v = rest.join('|').trim()
+      if (k && v) siteCustom[k.trim()] = { custom_url: v }
+    }
+    patch.site_configs = siteCustom
+    if (f.theporndb_api_token) patch.theporndb_api_token = f.theporndb_api_token
+    if (f.tmdb_api_key) patch.tmdb_api_key = f.tmdb_api_key
     const r = await api.configPut(patch)
     saveOk.value = r.ok
     saveMsg.value = r.ok ? '已保存' : (r.error || '保存失败')

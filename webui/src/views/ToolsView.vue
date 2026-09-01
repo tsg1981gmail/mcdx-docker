@@ -59,6 +59,14 @@
             <el-button size="small" type="primary" @click="run('actor-db', adb)">开始维护</el-button>
           </template>
 
+          <!-- 封面补图 -->
+          <template v-if="card.key === 'cover_backfill'">
+            <el-input v-model="cb.numbers" placeholder="番号，空格/逗号分隔" size="small" style="margin-bottom:6px" />
+            <el-checkbox v-model="cb.overwrite" size="small">覆盖已有图片</el-checkbox>
+            <el-checkbox v-model="cb.watermark" size="small">添加水印</el-checkbox>
+            <div style="margin-top:6px"><el-button size="small" type="primary" @click="doCoverBackfill">开始补图</el-button></div>
+          </template>
+
           <!-- 刮削缓存管理 -->
           <template v-if="card.key === 'scrape_cache'">
             <el-descriptions :column="2" size="small" border>
@@ -115,6 +123,7 @@ const adb = reactive({ action: 'clean_male', nfo_dir: '' })
 const gf = reactive({ path: '/data/userdata/gfriends' })
 const ss = reactive({ file: '', url: '' })
 const ms = reactive({ actors_name: '', library: '', deep: true })
+const cb = reactive({ numbers: '', overwrite: false, watermark: true })
 const cutBusy = ref(false)
 const cache = reactive({ db_exists: false, success_count: 0, remain_count: 0 })
 const toolTasks = ref<any[]>([])
@@ -126,7 +135,7 @@ const cards = [
   { key: 'move_videos', title: '移动视频、字幕', ready: true },
   { key: 'symlink_helper', title: '软链接助手（网盘→本地）', ready: true },
   { key: 'actor_db', title: '演员库维护（actor_database.xlsx）', ready: true },
-  { key: 'cover_backfill', title: '封面补图', ready: false, note: '依赖图片补全策略配置，后续版本接入' },
+  { key: 'cover_backfill', title: '封面补图（按番号补齐海报/缩略图）', ready: true },
   { key: 'scrape_cache', title: '刮削缓存管理', ready: true },
   { key: 'sync_gfriends', title: 'Gfriends 同步', ready: true },
 ]
@@ -152,6 +161,11 @@ async function doAppoint() {
 }
 async function doMissing() {
   const r = await http.post('/tools/missing', { actors_name: ms.actors_name, local_library: ms.library ? [ms.library] : [], deep: ms.deep })
+  if (!r.data.ok) alert(r.data.error || '启动失败')
+  refresh()
+}
+async function doCoverBackfill() {
+  const r = await http.post('/tools/cover-backfill', cb)
   if (!r.data.ok) alert(r.data.error || '启动失败')
   refresh()
 }
