@@ -131,7 +131,8 @@ class Organizer:
                     ok, msg = await _link_or_copy(file, file_new, self.mode)
                     nfo_path = ""
                     try:
-                        await write_nfo(fi, res, nfo_new, folder_new, update=False)
+                        # update=True 才会真正写盘（update=False 是"不写"守护分支）
+                        await write_nfo(fi, res, nfo_new, folder_new, update=True)
                         nfo_path = str(nfo_new)
                         self._info(f"nfo 写入: {nfo_new}")
                     except Exception as exc:  # noqa: BLE001
@@ -161,9 +162,16 @@ class Organizer:
         if not poster_final:
             return
         candidates = getattr(res, "poster_list", None) or []
-        if not candidates:
-            return
-        url = candidates[0].get("url") if isinstance(candidates[0], dict) else str(candidates[0])
+        url = None
+        if candidates:
+            first = candidates[0]
+            if isinstance(first, tuple) and len(first) >= 2:
+                url = first[1]            # (site, url, is_available?)
+            elif isinstance(first, dict):
+                url = first.get("url")
+            else:
+                url = str(first)
+        url = url or getattr(res, "poster", None)
         if not url:
             return
         import aiohttp

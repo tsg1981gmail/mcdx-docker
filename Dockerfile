@@ -9,7 +9,11 @@ ENV PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive \
     PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
     PIP_RETRIES=5 \
-    PIP_TIMEOUT=60
+    PIP_TIMEOUT=60 \
+    HTTP_PROXY= \
+    HTTPS_PROXY= \
+    ALL_PROXY= \
+    NO_PROXY=
 
 # mdcx core 依赖（PyQt6 在 core 链中仅当 QtCore/QtGui 层 import，需 GL 基础库）
 # 使用清华 Debian 源（默认源在部分网络环境不可达）
