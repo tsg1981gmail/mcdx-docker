@@ -27,7 +27,8 @@ export const api = {
   configGet: () => http.get('/config').then(r => r.data),
   configPut: (payload: any) => http.put('/config', payload).then(r => r.data),
   crawlerPreview: (path: string) => http.get('/crawl/preview', { params: { path } }).then(r => r.data),
-  crawlerStart: (path: string) => http.post('/crawl/start', { path, title: '批量刮削' }).then(r => r.data),
+  crawlerStart: (path: string, mode: string = 'common') => http.post('/crawl/start', { path, mode, title: '批量刮削' }).then(r => r.data),
+  crawlerStartFiles: (files: string[], mode: string = 'common', force: boolean = false) => http.post('/crawl/start', { files, mode, force, title: '单文件刮削' }).then(r => r.data),
   organizePreview: (source: string, library: string) => http.post('/organize/preview', { source, library, mode: 'hardlink' }).then(r => r.data),
   organizeStart: (payload: any) => http.post('/organize/start', payload).then(r => r.data),
 }

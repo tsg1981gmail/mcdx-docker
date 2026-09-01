@@ -23,6 +23,8 @@ class CrawlStartRequest(BaseModel):
     path: str | None = None      # 目录：递归枚举视频
     files: list[str] = []        # 或显式文件列表
     title: str = "批量刮削"
+    mode: str = "common"         # 与原版一致：common|sort|update|read
+    force: bool = False          # 单文件强制重新刮削（FileMode.Again）
 
 
 @router.get("/preview")
@@ -51,6 +53,8 @@ async def start_crawl(req: CrawlStartRequest):
         return {"ok": False, "error": "请提供 path 或 files"}
     if not files:
         return {"ok": False, "error": "该目录下没有视频文件"}
+    if req.mode not in ("common", "sort", "update", "read"):
+        return {"ok": False, "error": "mode 需为 common|sort|update|read"}
 
     paths = [str(f) for f in files]
     engine = HeadlessScrapeEngine()
@@ -62,7 +66,7 @@ async def start_crawl(req: CrawlStartRequest):
 
         watcher = asyncio.create_task(watch())
         try:
-            result = await engine.scrape_paths(paths)
+            result = await engine.scrape_paths(paths, mode=req.mode, force=req.force)
         finally:
             watcher.cancel()
         return result
@@ -72,7 +76,7 @@ async def start_crawl(req: CrawlStartRequest):
         from mdcx.config.manager import manager  # noqa: F401  (确保接线)
 
         engine.on_progress = lambda done, total, succ, fail: (
-            task.update(done, total or 1, f"成功 {succ} / 失败 {fail}")
+            task.update(done, total or 1, f"成功 {succ} / 失败 {fail} / 共 {total or len(paths)}")
         )
         engine.on_file = lambda f: setattr(task, "detail", f"处理中: {Path(f).name}")
         task.total = len(paths)
