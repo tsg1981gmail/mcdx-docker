@@ -15,9 +15,9 @@ log = logging.getLogger("mdcx.web")
 router = APIRouter()
 
 TOOLS_INDEX = [
-    {"key": "single_scrape", "name": "单文件刮削（指定番号网址）", "ready": False},
+    {"key": "single_scrape", "name": "单文件刮削（指定番号网址）", "ready": True},
     {"key": "poster_cut", "name": "裁剪图片（封面图比例，可选水印）", "ready": True},
-    {"key": "missing", "name": "检查演员缺失番号", "ready": False},
+    {"key": "missing", "name": "检查演员缺失番号", "ready": True},
     {"key": "move_videos", "name": "移动视频、字幕", "ready": True},
     {"key": "symlink_helper", "name": "软链接助手", "ready": True},
     {"key": "actor_db", "name": "演员库维护", "ready": True},
@@ -216,6 +216,50 @@ async def _actor_fn(name: str, nfo_dir: str = ""):
     if dataclasses.is_dataclass(result):
         result = dataclasses.asdict(result)
     return result
+
+
+# ---------- 检查演员缺失番号 ----------
+class MissingRequest(BaseModel):
+    actors_name: str = ""
+    local_library: list[str] = []
+    deep: bool = True
+
+
+@router.post("/missing")
+async def missing(req: MissingRequest):
+    from mdcx.config.manager import manager
+    from mdcx.signals import signal
+
+    logs: list[str] = []
+
+    async def worker(_task, stop):
+        old_an = manager.config.actors_name
+        old_ll = list(manager.config.local_library or [])
+        try:
+            if req.actors_name:
+                manager.config.actors_name = req.actors_name
+            if req.local_library:
+                manager.config.local_library = req.local_library
+            from mdcx.tools.missing import check_missing_number
+
+            orig = signal.show_log_text
+            def cap(text: str) -> None:
+                logs.append(text)
+                orig(text)
+            signal.show_log_text = cap
+            try:
+                await check_missing_number(req.deep)
+            finally:
+                signal.show_log_text = orig
+        finally:
+            manager.config.actors_name = old_an
+            manager.config.local_library = old_ll
+        return {"log_lines": len(logs), "logs": logs[-150:]}
+
+    tid = await start_task("tools", "检查演员缺失番号", worker)
+    if tid is None:
+        return {"ok": False, "error": "已有任务在运行"}
+    return {"ok": True, "task_id": tid}
 
 
 # ---------- Gfriends ----------

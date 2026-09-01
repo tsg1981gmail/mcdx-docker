@@ -153,3 +153,42 @@ class HeadlessScrapeEngine:
     def request_cancel() -> None:
         from mdcx.models.flags import Flags
         Flags.stop_requested = True
+
+    async def scrape_appoint(self, file_path: str, url: str) -> dict:
+        """单文件刮削（指定番号网址）：复刻原版 pushButton_start_single_file_clicked 语义。"""
+        from mdcx.config.extend import deal_url
+        from mdcx.config.manager import manager
+        from mdcx.crawler import CrawlerProvider
+        from mdcx.core.scraper import Scraper
+        from mdcx.models.enums import FileMode
+        from mdcx.models.flags import Flags
+
+        website, _u = deal_url(url)
+        if website is None:
+            return {"ok": False, "error": "不支持的网站，请检查番号网址"}
+        Flags.single_file_path = Path(file_path).resolve()
+        Flags.appoint_url = url.strip()
+        Flags.website_name = website
+        self.records = []
+        async with manager.acquire_computed() as computed:
+            provider = CrawlerProvider(manager.config, computed.async_client,
+                                       config_getter=lambda: manager.config)
+            scraper = Scraper(provider)
+            try:
+                Flags.stop_requested = False
+                self._hook_signals()
+                try:
+                    await scraper.run(FileMode.Single, [Flags.single_file_path])
+                finally:
+                    self._unhook_signals()
+            finally:
+                Flags.appoint_url = ""
+                Flags.single_file_path = Path("")
+                Flags.website_name = ""
+        return {
+            "ok": True,
+            "website": website,
+            "total": Flags.total_count, "done": Flags.scrape_done,
+            "succ": Flags.succ_count, "fail": Flags.fail_count,
+            "records": self.records,
+        }

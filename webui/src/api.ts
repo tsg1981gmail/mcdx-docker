@@ -29,6 +29,7 @@ export const api = {
   crawlerPreview: (path: string) => http.get('/crawl/preview', { params: { path } }).then(r => r.data),
   crawlerStart: (path: string, mode: string = 'common') => http.post('/crawl/start', { path, mode, title: '批量刮削' }).then(r => r.data),
   crawlerStartFiles: (files: string[], mode: string = 'common', force: boolean = false) => http.post('/crawl/start', { files, mode, force, title: '单文件刮削' }).then(r => r.data),
+  crawlerAppoint: (file: string, url: string) => http.post('/crawl/appoint', { file, url }).then(r => r.data),
   organizePreview: (source: string, library: string) => http.post('/organize/preview', { source, library, mode: 'hardlink' }).then(r => r.data),
   organizeStart: (payload: any) => http.post('/organize/start', payload).then(r => r.data),
 }

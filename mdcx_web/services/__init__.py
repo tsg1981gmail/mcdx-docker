@@ -68,6 +68,7 @@ async def start_task(
 
     async def runner() -> None:
         task.status = TaskStatus.RUNNING
+        task._atask = asyncio.current_task()
         try:
             result = await fn(task, task._cancel_event)
             task.status = TaskStatus.SUCCESS

@@ -102,6 +102,13 @@ async def cancel_task(task_id: str):
     if not t:
         return {"ok": False, "error": "任务不存在"}
     t.request_cancel()
+    # tools 类任务无内建优雅停止点 → 直接取消底层协程（crawl 走 Flags 优雅停止）
+    atask = getattr(t, "_atask", None)
+    if t.kind == "tools" and atask is not None and not atask.done():
+        try:
+            atask.cancel()
+        except Exception:  # noqa: BLE001
+            pass
     return {"ok": True}
 
 

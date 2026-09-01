@@ -10,6 +10,21 @@
             </div>
           </template>
 
+          <!-- 单文件刮削（指定番号网址） -->
+          <template v-if="card.key === 'single_scrape'">
+            <el-input v-model="ss.file" placeholder="文件路径 /media/xxx.mp4" size="small" style="margin-bottom:6px" />
+            <el-input v-model="ss.url" placeholder="番号网址（如 javbus/javdb 详情页 URL）" size="small" style="margin-bottom:6px" />
+            <el-button size="small" type="primary" @click="doAppoint">刮削</el-button>
+          </template>
+
+          <!-- 检查演员缺失番号 -->
+          <template v-if="card.key === 'missing'">
+            <el-input v-model="ms.actors_name" placeholder="演员名（逗号分隔）" size="small" style="margin-bottom:6px" />
+            <el-input v-model="ms.library" placeholder="本地资源库目录 /media/lib" size="small" style="margin-bottom:6px" />
+            <el-checkbox v-model="ms.deep">深查（含 nfo 演员集合）</el-checkbox>
+            <div style="margin-top:6px"><el-button size="small" type="primary" @click="doMissing">检查缺失番号</el-button></div>
+          </template>
+
           <!-- 裁剪图片 -->
           <template v-if="card.key === 'poster_cut'">
             <el-input v-model="cut.image" placeholder="原图路径 /media/xxx.jpg" size="small" style="margin-bottom:6px" />
@@ -98,14 +113,16 @@ const mv = reactive({ path: '', target: 'Movie_moved' })
 const sl = reactive({ netdisk_path: '', local_path: '', copy_files: false })
 const adb = reactive({ action: 'clean_male', nfo_dir: '' })
 const gf = reactive({ path: '/data/userdata/gfriends' })
+const ss = reactive({ file: '', url: '' })
+const ms = reactive({ actors_name: '', library: '', deep: true })
 const cutBusy = ref(false)
 const cache = reactive({ db_exists: false, success_count: 0, remain_count: 0 })
 const toolTasks = ref<any[]>([])
 
 const cards = [
-  { key: 'single_scrape', title: '单文件刮削（指定番号网址）', ready: false, note: '需约定网站选择与番号网址解析，后续版本接入', },
+  { key: 'single_scrape', title: '单文件刮削（指定番号网址）', ready: true },
   { key: 'poster_cut', title: '裁剪图片（封面图比例）', ready: true },
-  { key: 'missing', title: '检查演员缺失番号', ready: false, note: '依赖本地资源库索引与演员集合构建，后续版本接入' },
+  { key: 'missing', title: '检查演员缺失番号', ready: true },
   { key: 'move_videos', title: '移动视频、字幕', ready: true },
   { key: 'symlink_helper', title: '软链接助手（网盘→本地）', ready: true },
   { key: 'actor_db', title: '演员库维护（actor_database.xlsx）', ready: true },
@@ -127,6 +144,16 @@ async function doCut() {
   } finally {
     cutBusy.value = false
   }
+}
+async function doAppoint() {
+  const r = await api.crawlerAppoint(ss.file, ss.url)
+  if (!r.data.ok) alert(r.data.error || '启动失败')
+  refresh()
+}
+async function doMissing() {
+  const r = await http.post('/tools/missing', { actors_name: ms.actors_name, local_library: ms.library ? [ms.library] : [], deep: ms.deep })
+  if (!r.data.ok) alert(r.data.error || '启动失败')
+  refresh()
 }
 async function cacheAct(action: string) {
   const r = await http.post('/tools/cache', { action })
