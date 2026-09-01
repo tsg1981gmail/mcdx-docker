@@ -35,7 +35,7 @@ class OrganizeItem:
 
 
 async def _link_or_copy(src: Path, dst: Path, prefer: str) -> tuple[bool, str]:
-    """硬链接(dst 同 fs)或复制；目标已存在且同源→跳过。返回 (ok, 说明)。"""
+    """硬链接/软链接/复制；目标已存在且同源→跳过；链接失败自动回退复制。返回 (ok, 说明)。"""
     dst.parent.mkdir(parents=True, exist_ok=True)
     if dst.exists():
         try:
@@ -53,6 +53,12 @@ async def _link_or_copy(src: Path, dst: Path, prefer: str) -> tuple[bool, str]:
             if code not in (18, 30, 1):  # EXDEV, EROFS, EPERM 之外仍报告失败
                 return False, f"硬链接失败: {exc}"
             log.info("hardlink cross-device/ro for %s -> %s, fallback copy", src, dst)
+    elif prefer == "symlink":
+        try:
+            os.symlink(src.resolve(), dst)
+            return True, "软链接"
+        except OSError as exc:
+            log.info("symlink failed for %s -> %s: %s, fallback copy", src, dst, exc)
     try:
         await asyncio.to_thread(_copy_atomic, src, dst)
         return True, "复制" if prefer != "hardlink" else "复制(硬链接不可用回退)"
@@ -71,7 +77,7 @@ class Organizer:
                  on_progress: ProgressCb | None = None, on_log: Callable[[str], None] | None = None,
                  download_poster: bool = True) -> None:
         self.library_root = library_root.resolve()
-        self.mode = mode if mode in ("hardlink", "copy") else "hardlink"
+        self.mode = mode if mode in ("hardlink", "copy", "symlink") else "hardlink"
         self.on_progress = on_progress
         self.on_log = on_log
         self.download_poster = download_poster
@@ -135,7 +141,7 @@ class Organizer:
                             await self._fetch_poster(computed, res, poster_final)
                         except Exception as exc:  # noqa: BLE001
                             self._info(f"海报下载失败: {exc}")
-                    action = "linked" if msg == "硬链接" else ("copied" if "复制" in msg else "skipped")
+                    action = "linked" if "链接" in msg else ("copied" if "复制" in msg else "skipped")
                     bump(OrganizeItem(str(file), str(file_new), action, msg, nfo_path))
                 except asyncio.CancelledError:
                     bump(OrganizeItem(str(file), "", "skipped", "已取消"))

@@ -29,7 +29,8 @@ class HeadlessScrapeEngine:
         self._hooked = False
 
     def _hook_signals(self) -> None:
-        from mdcx.signals import signal, Qt
+        from PyQt6.QtCore import Qt
+        from mdcx.signals import signal
         if self._hooked:
             return
         if self.on_progress is not None:

@@ -13,8 +13,10 @@
         <el-form-item label="链接方式">
           <el-radio-group v-model="mode">
             <el-radio value="hardlink">硬链接（同盘，省空间）</el-radio>
+            <el-radio value="symlink">软链接（跨盘/网盘可用）</el-radio>
             <el-radio value="copy">复制（跨盘）</el-radio>
           </el-radio-group>
+          <div class="hint">硬链接要求同文件系统；软/硬链接失败时自动回退为复制。</div>
         </el-form-item>
         <el-form-item label="并发数">
           <el-input-number v-model="concurrency" :min="1" :max="8" />
