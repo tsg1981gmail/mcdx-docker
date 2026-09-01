@@ -4,8 +4,11 @@
     <el-tab-pane label="影片刮削" name="scrape">
       <!-- 刮削目录 + 模式 + 操作 -->
       <div class="action-bar">
-        <el-input v-model="path" placeholder="刮削目录（容器内 /media 下路径）" style="width:340px" @keyup.enter="loadFiles" />
+        <el-input v-model="path" placeholder="刮削目录（容器内 /media 下路径）" style="width:260px" @keyup.enter="loadFiles" />
         <el-button @click="loadFiles">浏览</el-button>
+        <el-select v-model="curPreset" size="default" style="width:150px;margin-left:6px" placeholder="快捷方案" @change="switchPreset">
+          <el-option v-for="p in presets" :key="p.name" :label="p.label" :value="p.name" />
+        </el-select>
         <el-radio-group v-model="mode" style="margin-left:12px">
           <el-radio-button value="common">正常模式</el-radio-button>
           <el-radio-button value="sort">整理模式</el-radio-button>
@@ -393,6 +396,8 @@ const nfoItems = ref<any[]>([])
 const nfoCur = ref<any>(null)
 const nfoForm = reactive({ title: '', number: '', year: '', release: '', studio: '', outline: '' })
 const about = ref<any>({ service: 'mdcx-web' })
+const presets = ref<any[]>([])
+const curPreset = ref('config.json')
 async function ctxForceScrape() {
   menu.show = false
   if (!menu.file) return
@@ -406,7 +411,7 @@ async function ctxOpenDir() {
   if (!r.ok) alert(r.error || '启动失败')
 }
 
-onMounted(() => { loadFiles(); refresh(); timer = window.setInterval(refresh, 2500); api.health().then(r => about.value = r.data) })
+onMounted(() => { loadFiles(); refresh(); timer = window.setInterval(refresh, 2500); api.health().then(r => about.value = r.data); loadPresets() })
 onUnmounted(() => window.clearInterval(timer))
 
 async function loadNfo() {
@@ -437,6 +442,18 @@ async function delNfo() {
   alert(r.data.ok ? '已删除' : r.data.error)
   nfoCur.value = null
   loadNfo()
+}
+async function loadPresets() {
+  const d = await api.presetsList()
+  if (!d.ok) return
+  presets.value = d.presets || []
+  curPreset.value = d.active || 'config.json'
+}
+async function switchPreset(name: string) {
+  if (name === curPreset.value) return
+  const r = await api.presetsSwitch(name)
+  if (!r.ok) alert(r.error || '切换失败')
+  else { loadPresets(); alert(`已切换方案：${name}`) }
 }
 </script>
 

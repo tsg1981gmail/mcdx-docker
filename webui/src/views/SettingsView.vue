@@ -2,10 +2,13 @@
   <el-card>
     <template #header>
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <span>设置（/data/config.json，与原版设置页分组对应）</span>
+        <span>设置（方案：{{ activePreset }} · /data/config.json）</span>
         <div>
-          <el-button type="primary" :loading="saving" @click="saveForm">保存</el-button>
-          <el-button @click="load">重新读取</el-button>
+          <el-select v-model="curPreset" size="small" style="width:180px" @change="switchPreset">
+            <el-option v-for="p in presets" :key="p.name" :label="p.label" :value="p.name" />
+          </el-select>
+          <el-button size="small" @click="promptPreset('save')">新建方案</el-button>
+          <el-button size="small" @click="promptPreset('delete')">删除</el-button>
         </div>
       </div>
     </template>
@@ -192,9 +195,22 @@
           <el-form-item label="TMDB API Key">
             <el-input v-model="f.tmdb_api_key" type="password" show-password placeholder="已设置则留空" />
           </el-form-item>
+
+          <el-divider content-position="left">字幕规则</el-divider>
+          <el-form-item label="添加外挂字幕">
+            <el-switch v-model="f.subtitle_enable" active-text="启用" />
+          </el-form-item>
+          <el-form-item label="中文字幕字符规则">
+            <el-input v-model="f.chinese_srt" placeholder="中文字幕包含字符（如 简体.ass）" />
+          </el-form-item>
+
+          <el-form-item>
+            <el-button type="primary" :loading="saving" @click="saveForm">保存设置</el-button>
+            <el-button @click="load">重新读取</el-button>
+          </el-form-item>
         </el-form>
         <el-alert type="info" :closable="false"
-          title='未覆盖的配置项（图片下载/水印/更新规则/NFO字段/站点自定义URL等）请用"高级(JSON)"编辑。' />
+          title='以上均为直观表单（随原版分组持续补全）；尚未表单化的低频项请用"高级(JSON)"编辑。' />
       </el-tab-pane>
 
       <el-tab-pane label="高级（JSON）" name="json">
@@ -211,6 +227,10 @@ import { api } from '../api'
 
 const mode = ref('form')
 const saving = ref(false)
+const activePreset = ref('默认')
+const curPreset = ref('config.json')
+const presets = ref<any[]>([])
+const formGroups = ref(18)
 const json = ref('')
 const saveMsg = ref('')
 const saveOk = ref(false)
@@ -294,7 +314,10 @@ async function load() {
   f.update_check = c.update_check !== false
   f.switch_on = [...(c.switch_on || [])]
   for (const g of SITE_GROUPS) siteTexts[g.key] = (c[g.key] || []).join(',')
+  f.subtitle_enable = !!c.subtitle_enable || !!c.add_subtitle
+  f.chinese_srt = c.chinese_srt ?? c.subtitle_chinese ?? ''
   json.value = JSON.stringify(c, null, 2)
+  await loadPresets()
 }
 
 async function saveForm() {
@@ -344,7 +367,10 @@ async function saveForm() {
     patch.save_log = f.save_log
     patch.update_check = f.update_check
     patch.switch_on = f.switch_on
+    patch.subtitle_enable = f.subtitle_enable
+    patch.chinese_srt = f.chinese_srt
     const r = await api.configPut(patch)
+    if (r.ok) await loadPresets()
     saveOk.value = r.ok
     saveMsg.value = r.ok ? '已保存' : (r.error || '保存失败')
     if (r.ok) await load()
@@ -353,5 +379,26 @@ async function saveForm() {
   }
 }
 
+async function loadPresets() {
+  const d = await api.presetsList()
+  if (!d.ok) return
+  presets.value = d.presets || []
+  curPreset.value = d.active || 'config.json'
+  const p = presets.value.find(x => x.name === d.active)
+  activePreset.value = p?.label ?? d.active ?? '默认'
+}
+async function switchPreset(name: string) {
+  if (name === curPreset.value) return
+  const r = await api.presetsSwitch(name)
+  if (!r.ok) { alert(r.error || '切换失败'); loadPresets() }
+  else { await load(); alert(`已切换方案：${r.data?.active || name}`) }
+}
+async function promptPreset(action: 'save' | 'delete') {
+  const name = window.prompt(action === 'save' ? '新方案名称（将另存当前设置并切换）：' : '要删除的方案名：')
+  if (!name) return
+  const r = action === 'save' ? await api.presetsSave(name) : await api.presetsDelete(name)
+  if (!r.ok) alert(r.error || (action === 'save' ? '保存失败' : '删除失败'))
+  else { await loadPresets(); if (action === 'save') await load() }
+}
 onMounted(load)
 </script>
