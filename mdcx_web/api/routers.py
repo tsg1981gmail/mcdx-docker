@@ -6,6 +6,7 @@ from fastapi import APIRouter
 from . import config as config_api
 from . import crawl as crawl_api
 from . import files as files_api
+from . import net as net_api
 from . import organize as organize_api
 from . import scan as scan_api
 from . import tasks as tasks_api
@@ -16,6 +17,7 @@ api_router.include_router(tasks_api.router, prefix="/tasks", tags=["tasks"])
 api_router.include_router(config_api.router, prefix="/config", tags=["config"])
 api_router.include_router(files_api.router, prefix="/files", tags=["files"])
 api_router.include_router(scan_api.router, prefix="/scan", tags=["scan"])
+api_router.include_router(net_api.router, prefix="/net", tags=["net"])
 api_router.include_router(crawl_api.router, prefix="/crawl", tags=["crawl"])
 api_router.include_router(organize_api.router, prefix="/organize", tags=["organize"])
 api_router.include_router(tools_api.router, prefix="/tools", tags=["tools"])

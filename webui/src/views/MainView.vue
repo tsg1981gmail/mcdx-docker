@@ -89,6 +89,58 @@
       </el-tabs>
     </el-tab-pane>
 
+    <!-- ============ 网络检测（对应原版 page_net）============ -->
+    <el-tab-pane label="网络检测" name="net">
+      <el-card>
+        <template #header>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span>网站连通性检测（当前代理：{{ netProxy || '未启用' }} {{ netProxyReach !== null ? (netProxyReach ? '✅可达' : '❌不可达') : '' }}）</span>
+            <el-button type="primary" :loading="netBusy" @click="checkNet">开始检测</el-button>
+          </div>
+        </template>
+        <el-table :data="netItems" size="small">
+          <el-table-column prop="site" label="站点" width="120" />
+          <el-table-column prop="url" label="地址" min-width="220" />
+          <el-table-column label="状态" width="120">
+            <template #default="{ row }">
+              <el-tag :type="row.ok ? 'success' : 'danger'" size="small">{{ row.status ?? '超时/失败' }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="time_ms" label="耗时(ms)" width="110" />
+          <el-table-column prop="error" label="错误" min-width="160" />
+        </el-table>
+        <el-alert style="margin-top:10px" type="info" :closable="false" :title="netNote" />
+      </el-card>
+    </el-tab-pane>
+
+    <!-- ============ 日志（对应原版 page_log）============ -->
+    <el-tab-pane label="日志" name="logpage">
+      <el-card>
+        <template #header>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span>运行日志与失败列表（失败 {{ failRecords.length }} 条）</span>
+            <div>
+              <el-button size="small" @click="saveFailList">保存失败列表</el-button>
+              <el-button size="small" type="danger" :disabled="!failRecords.length" @click="rescrapeFailed">一键刮削失败列表</el-button>
+            </div>
+          </div>
+        </template>
+        <el-tabs v-model="logTab">
+          <el-tab-pane label="实时日志" name="live">
+            <div class="log-console lg">
+              <div v-for="(line, i) in logLines" :key="i" class="log-line">{{ line }}</div>
+            </div>
+          </el-tab-pane>
+          <el-tab-pane label="失败列表" name="fail">
+            <el-table :data="failRecords" size="small" max-height="300">
+              <el-table-column prop="number" label="番号" width="140" />
+              <el-table-column prop="show_name" label="名称" min-width="280" show-overflow-tooltip />
+            </el-table>
+          </el-tab-pane>
+        </el-tabs>
+      </el-card>
+    </el-tab-pane>
+
     <!-- ============ 工具 ============ -->
     <el-tab-pane label="工具" name="tools">
       <ToolsView />
@@ -103,11 +155,12 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, reactive, ref } from 'vue'
-import { api, TaskSnapshot } from '../api'
+import { api, http, TaskSnapshot } from '../api'
 import ToolsView from './ToolsView.vue'
 import SettingsView from './SettingsView.vue'
 
 const tab = ref('scrape')
+const logTab = ref('live')
 const resultTab = ref('succ')
 const path = ref('/media')
 const mode = ref('common')
@@ -122,6 +175,13 @@ const logLines = ref<string[]>([])
 const menu = reactive({ show: false, x: 0, y: 0, file: null as any })
 const fcRows = ref<any[]>([])
 const fcDirty = ref(false)
+const netItems = ref<any[]>([])
+const netBusy = ref(false)
+const netProxy = ref('')
+const netProxyReach = ref<boolean | null>(null)
+const netNote = ref('')
+const failRecords = ref<any[]>([])
+const lastCrawlTask = ref<string | null>(null)
 
 let timer: number | undefined
 
@@ -162,6 +222,8 @@ async function saveFieldConfig() {
 }
 async function refresh() {
   const tasks = await api.tasks()
+  toolTasks2.value = tasks
+  syncFailures()
   const t = tasks.find(x => x.kind === 'crawl')
   if (!t) {
     busy.value = false
@@ -206,6 +268,41 @@ function onContext(row: any, _col: any, e: MouseEvent) {
   menu.y = e.clientY
 }
 function closeMenu() { menu.show = false }
+async function checkNet() {
+  netBusy.value = true
+  try {
+    const r = await http.post('/net/check')
+    const d = r.data
+    netItems.value = d.items || []
+    netProxy.value = d.proxy || ''
+    netProxyReach.value = d.proxy_reachable ?? null
+    netNote.value = `${d.summary?.ok ?? 0} 可达 / ${d.summary?.fail ?? 0} 不可达。${d.note || ''}`
+  } finally {
+    netBusy.value = false
+  }
+}
+function saveFailList() {
+  const text = failRecords.value.map(x => x.number).join('\n')
+  const blob = new Blob([text], { type: 'text/plain' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = 'failed-list.txt'
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
+async function rescrapeFailed() {
+  const paths = failRecords.value.map(x => x.show_name).filter(Boolean)
+  if (!paths.length) return
+  const r = await api.crawlerStartFiles([''], 'common', false)
+  if (!r.ok) alert(r.error || '启动失败')
+}
+function syncFailures() {
+  const latest = toolTasks2.value.find(t => t.kind === 'crawl' && t.status === 'success')
+  if (latest?.result?.records) {
+    failRecords.value = latest.result.records.filter((x: any) => x.status === 'fail')
+  }
+}
+const toolTasks2 = ref<any[]>([])
 async function ctxForceScrape() {
   menu.show = false
   if (!menu.file) return
