@@ -31,3 +31,4 @@ config.json.monkeycode/
 .github/workflows/package-trawl.yml
 .github/workflows/check-trawl-update.yml
 .github/workflows/close-stale-issues.yml
+.github/workflows/docker-publish.yml
