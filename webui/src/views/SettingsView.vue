@@ -1,46 +1,234 @@
 <template>
   <el-card>
-    <template #header>设置（/data/config.json，mdcx 配置）</template>
-    <div style="margin-bottom:10px;font-size:13px;color:#666">
-      配置路径：{{ info.config_path }} · 数据目录：{{ info.data_folder }}
-    </div>
-    <el-button type="primary" @click="save" style="margin-bottom:10px">保存配置（校验 + 原子写入）</el-button>
-    <el-button @click="load" style="margin-bottom:10px">重新读取</el-button>
-    <el-input v-model="json" type="textarea" :rows="24" style="font-family:monospace" />
-    <el-tag v-if="saveMsg" :type="saveOk ? 'success' : 'danger'" style="margin-top:10px">{{ saveMsg }}</el-tag>
-    <div style="margin-top:14px;font-size:12px;color:#888">
-      ⚠️ 敏感字段在读取时已打码；保存时请填入真实值<br>
-      常用键：media_path（源，分号分隔）、success_output_folder（输出）、folder_name（目录模板）、
-      naming_file（文件模板）、website_youma / website_wuma（站点优先级）、translate_config（翻译/LLM）、
-      proxy / use_proxy（网络）、soft_link（0 移动 / 1 软链 / 2 硬链）
-    </div>
+    <template #header>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span>设置（/data/config.json，与原版设置页分组对应）</span>
+        <div>
+          <el-button type="primary" :loading="saving" @click="saveForm">保存</el-button>
+          <el-button @click="load">重新读取</el-button>
+        </div>
+      </div>
+    </template>
+
+    <el-tabs v-model="mode">
+      <el-tab-pane label="常用设置" name="form">
+        <el-form label-width="150px" size="small">
+          <el-divider content-position="left">刮削目录</el-divider>
+          <el-form-item label="待刮削目录（;分隔）">
+            <el-input v-model="f.media_path" placeholder="D:\Media\Input 或 /media/src" />
+          </el-form-item>
+          <el-form-item label="成功输出目录">
+            <el-input v-model="f.success_output_folder" />
+          </el-form-item>
+          <el-form-item label="失败输出目录">
+            <el-input v-model="f.failed_output_folder" />
+          </el-form-item>
+
+          <el-divider content-position="left">刮削模式</el-divider>
+          <el-form-item label="刮削模式">
+            <el-radio-group v-model="f.main_mode">
+              <el-radio :value="1">正常模式</el-radio>
+              <el-radio :value="2">整理模式</el-radio>
+              <el-radio :value="3">更新模式</el-radio>
+              <el-radio :value="4">读取模式</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="刮削方式">
+            <el-select v-model="f.scrape_like" style="width:220px">
+              <el-option label="信息优先" value="info" />
+              <el-option label="速度优先" value="speed" />
+              <el-option label="单站刮削" value="single" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="多线程刮削数">
+            <el-input-number v-model="f.thread_number" :min="1" :max="200" />
+          </el-form-item>
+          <el-form-item label="成功后软硬链接">
+            <el-select v-model="f.soft_link" style="width:220px">
+              <el-option label="移动（默认）" :value="0" />
+              <el-option label="创建软链接" :value="1" />
+              <el-option label="创建硬链接" :value="2" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="成功移动 / 重命名">
+            <el-switch v-model="f.success_file_move" active-text="移动" inactive-text="不移动" />
+            <el-switch v-model="f.success_file_rename" active-text="重命名" inactive-text="不重命名" style="margin-left:12px" />
+          </el-form-item>
+          <el-form-item label="失败移动 / 删除空文件夹">
+            <el-switch v-model="f.failed_file_move" active-text="移动失败文件" />
+            <el-switch v-model="f.del_empty_folder" active-text="删除空文件夹" style="margin-left:12px" />
+          </el-form-item>
+
+          <el-divider content-position="left">刮削网站</el-divider>
+          <el-form-item v-for="g in SITE_GROUPS" :key="g.key" :label="g.label">
+            <el-input v-model="siteTexts[g.key]" placeholder="站点名，逗号分隔" />
+          </el-form-item>
+          <el-form-item label="固定刮削类型">
+            <el-select v-model="f.fixed_scraping_type" style="width:220px">
+              <el-option label="自动" value="auto" />
+              <el-option label="有码" value="youma" />
+              <el-option label="无码" value="wuma" />
+              <el-option label="素人" value="suren" />
+              <el-option label="FC2" value="fc2" />
+              <el-option label="欧美" value="oumei" />
+              <el-option label="国产" value="guochan" />
+            </el-select>
+          </el-form-item>
+
+          <el-divider content-position="left">命名规则</el-divider>
+          <el-form-item label="目录模板 folder_name">
+            <el-input v-model="f.folder_name" />
+          </el-form-item>
+          <el-form-item label="文件模板 naming_file">
+            <el-input v-model="f.naming_file" />
+          </el-form-item>
+          <el-form-item label="NFO 标题模板 naming_media">
+            <el-input v-model="f.naming_media" />
+          </el-form-item>
+
+          <el-divider content-position="left">翻译 / LLM</el-divider>
+          <el-form-item label="翻译引擎（逗号分隔）">
+            <el-input v-model="f.translate_by" />
+          </el-form-item>
+          <el-form-item label="LLM URL">
+            <el-input v-model="f.translate_llm_url" placeholder="https://api.deepseek.com/v1" />
+          </el-form-item>
+          <el-form-item label="LLM 模型">
+            <el-input v-model="f.translate_llm_model" placeholder="deepseek-chat" />
+          </el-form-item>
+          <el-form-item label="LLM Key（留空不改）">
+            <el-input v-model="f.translate_llm_key" type="password" show-password placeholder="已设置则留空" />
+          </el-form-item>
+
+          <el-divider content-position="left">网络 / 代理</el-divider>
+          <el-form-item label="使用代理">
+            <el-switch v-model="f.use_proxy" />
+          </el-form-item>
+          <el-form-item label="代理地址">
+            <el-input v-model="f.proxy" placeholder="http://127.0.0.1:7890" />
+          </el-form-item>
+          <el-form-item label="全部走代理">
+            <el-switch v-model="f.proxy_route_all" />
+          </el-form-item>
+
+          <el-divider content-position="left">Emby / Jellyfin</el-divider>
+          <el-form-item label="启用 Emby 集成">
+            <el-switch v-model="f.emby_on" />
+          </el-form-item>
+          <el-form-item label="Emby URL">
+            <el-input v-model="f.emby_url" />
+          </el-form-item>
+          <el-form-item label="API Key（留空不改）">
+            <el-input v-model="f.emby_api_key" type="password" show-password placeholder="已设置则留空" />
+          </el-form-item>
+        </el-form>
+        <el-alert type="info" :closable="false"
+          title='未覆盖的配置项（图片下载/水印/更新规则/NFO字段/站点自定义URL等）请用"高级(JSON)"编辑。' />
+      </el-tab-pane>
+
+      <el-tab-pane label="高级（JSON）" name="json">
+        <el-input v-model="json" type="textarea" :rows="24" style="font-family:monospace" />
+        <el-tag v-if="saveMsg" :type="saveOk ? 'success' : 'danger'" style="margin-top:10px">{{ saveMsg }}</el-tag>
+      </el-tab-pane>
+    </el-tabs>
   </el-card>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { api } from '../api'
 
+const mode = ref('form')
+const saving = ref(false)
 const json = ref('')
-const info = ref<any>({})
 const saveMsg = ref('')
 const saveOk = ref(false)
 
+const SITE_GROUPS = [
+  { key: 'website_youma', label: '有码网站' },
+  { key: 'website_wuma', label: '无码网站' },
+  { key: 'website_suren', label: '素人网站' },
+  { key: 'website_fc2', label: 'FC2 网站' },
+  { key: 'website_oumei', label: '欧美网站' },
+  { key: 'website_guochan', label: '国产网站' },
+]
+
+const f = reactive<any>({
+  media_path: '', success_output_folder: '', failed_output_folder: '',
+  main_mode: 1, scrape_like: 'info', thread_number: 50, soft_link: 0,
+  success_file_move: true, success_file_rename: true, failed_file_move: true, del_empty_folder: false,
+  fixed_scraping_type: 'auto', folder_name: '', naming_file: '', naming_media: '',
+  translate_by: '', translate_llm_url: '', translate_llm_model: '', translate_llm_key: '',
+  use_proxy: false, proxy: '', proxy_route_all: false,
+  emby_on: false, emby_url: '', emby_api_key: '',
+})
+const siteTexts = reactive<any>({})
+
 async function load() {
   const d = await api.configGet()
-  if (!d.ok) { alert(d.error || '读取失败'); return }
-  info.value = d
-  json.value = JSON.stringify(d.config, null, 2)
+  if (!d.ok) return
+  const c = d.config
+  f.media_path = c.media_path ?? ''
+  f.success_output_folder = c.success_output_folder ?? ''
+  f.failed_output_folder = c.failed_output_folder ?? ''
+  f.main_mode = c.main_mode ?? 1
+  f.scrape_like = c.scrape_like ?? 'info'
+  f.thread_number = c.thread_number ?? 50
+  f.soft_link = c.soft_link ?? 0
+  f.success_file_move = !!c.success_file_move
+  f.success_file_rename = !!c.success_file_rename
+  f.failed_file_move = !!c.failed_file_move
+  f.del_empty_folder = !!c.del_empty_folder
+  f.fixed_scraping_type = c.fixed_scraping_type ?? 'auto'
+  f.folder_name = c.folder_name ?? ''
+  f.naming_file = c.naming_file ?? ''
+  f.naming_media = c.naming_media ?? ''
+  const tc = c.translate_config ?? {}
+  f.translate_by = (tc.translate_by || []).join(',')
+  f.translate_llm_url = tc.llm_url ?? ''
+  f.translate_llm_model = tc.llm_model ?? ''
+  f.translate_llm_key = ''   // 打码不回显
+  f.use_proxy = !!c.use_proxy
+  f.proxy = c.proxy ?? ''
+  f.proxy_route_all = !!c.proxy_route_all
+  f.emby_on = !!c.emby_on
+  f.emby_url = c.emby_url ?? ''
+  f.emby_api_key = ''
+  for (const g of SITE_GROUPS) siteTexts[g.key] = (c[g.key] || []).join(',')
+  json.value = JSON.stringify(c, null, 2)
 }
-async function save() {
-  saveMsg.value = ''
-  let payload: any
-  try { payload = JSON.parse(json.value) } catch {
-    saveMsg.value = 'JSON 语法错误'; saveOk.value = false; return
+
+async function saveForm() {
+  saving.value = true
+  try {
+    const patch: any = {
+      media_path: f.media_path, success_output_folder: f.success_output_folder,
+      failed_output_folder: f.failed_output_folder,
+      main_mode: f.main_mode, scrape_like: f.scrape_like, thread_number: f.thread_number,
+      soft_link: f.soft_link, success_file_move: f.success_file_move,
+      success_file_rename: f.success_file_rename, failed_file_move: f.failed_file_move,
+      del_empty_folder: f.del_empty_folder,
+      fixed_scraping_type: f.fixed_scraping_type,
+      folder_name: f.folder_name, naming_file: f.naming_file, naming_media: f.naming_media,
+      use_proxy: f.use_proxy, proxy: f.proxy, proxy_route_all: f.proxy_route_all,
+      emby_on: f.emby_on, emby_url: f.emby_url,
+    }
+    for (const g of SITE_GROUPS) {
+      patch[g.key] = siteTexts[g.key].split(/[,，\s]+/).filter(Boolean)
+    }
+    patch.translate_config = {
+      translate_by: f.translate_by.split(/[,，\s]+/).filter(Boolean),
+      llm_url: f.translate_llm_url, llm_model: f.translate_llm_model,
+    }
+    if (f.translate_llm_key) patch.translate_config.llm_key = f.translate_llm_key
+    if (f.emby_api_key) patch.emby_api_key = f.emby_api_key
+    const r = await api.configPut(patch)
+    saveOk.value = r.ok
+    saveMsg.value = r.ok ? '已保存' : (r.error || '保存失败')
+    if (r.ok) await load()
+  } finally {
+    saving.value = false
   }
-  const r = await api.configPut(payload)
-  saveOk.value = r.ok
-  saveMsg.value = r.ok ? `已保存（${r.config_path}）${r.errors?.length ? '，有迁移提示: ' + r.errors.join('; ') : ''}` : r.error || '保存失败'
 }
 
 onMounted(load)
