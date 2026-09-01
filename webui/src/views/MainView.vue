@@ -193,6 +193,20 @@
       </el-row>
     </el-tab-pane>
 
+    <!-- ============ 关于（对应原版 page_about）============ -->
+    <el-tab-pane label="关于" name="about">
+      <el-card style="max-width:720px;margin:0 auto">
+        <template #header>mcdx-docker（基于 mdcx-diy）</template>
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="用途">视频刮削与整理（35+ 站点、命名模板、翻译/LLM、硬链接整理、演员库）</el-descriptions-item>
+          <el-descriptions-item label="界面">原生 Web（FastAPI + Vue3/Element Plus），复刻原版主界面 7 页签</el-descriptions-item>
+          <el-descriptions-item label="数据配置">/data/config.json · 媒体挂载区 /media</el-descriptions-item>
+          <el-descriptions-item label="服务">mdcx-web / {{ about.service || '—' }} v{{ about.version || '0.1.0' }}</el-descriptions-item>
+          <el-descriptions-item label="说明">衍生自 mdcx-diy（GPL-3.0）；完整功能对齐见 docs/ACCEPTANCE.md</el-descriptions-item>
+        </el-descriptions>
+      </el-card>
+    </el-tab-pane>
+
     <!-- ============ 工具 ============ -->
     <el-tab-pane label="工具" name="tools">
       <ToolsView />
@@ -378,6 +392,7 @@ const nfoFilter = ref('')
 const nfoItems = ref<any[]>([])
 const nfoCur = ref<any>(null)
 const nfoForm = reactive({ title: '', number: '', year: '', release: '', studio: '', outline: '' })
+const about = ref<any>({ service: 'mdcx-web' })
 async function ctxForceScrape() {
   menu.show = false
   if (!menu.file) return
@@ -391,7 +406,7 @@ async function ctxOpenDir() {
   if (!r.ok) alert(r.error || '启动失败')
 }
 
-onMounted(() => { loadFiles(); refresh(); timer = window.setInterval(refresh, 2500) })
+onMounted(() => { loadFiles(); refresh(); timer = window.setInterval(refresh, 2500); api.health().then(r => about.value = r.data) })
 onUnmounted(() => window.clearInterval(timer))
 
 async function loadNfo() {
