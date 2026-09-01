@@ -150,6 +150,49 @@
       </el-card>
     </el-tab-pane>
 
+    <!-- ============ NFO 库（对应原版 page_nfo_library）============ -->
+    <el-tab-pane label="NFO 库" name="nfos">
+      <el-row :gutter="12">
+        <el-col :span="9">
+          <el-card>
+            <template #header>
+              <div style="display:flex;gap:6px">
+                <el-input v-model="nfoPath" placeholder="NFO 目录 /media/lib" size="small" @keyup.enter="loadNfo" />
+                <el-button size="small" @click="loadNfo">浏览</el-button>
+                <el-input v-model="nfoFilter" placeholder="过滤" size="small" style="width:90px" @input="loadNfo" />
+              </div>
+            </template>
+            <el-table :data="nfoItems" size="small" height="460" highlight-current-row @row-click="readNfo">
+              <el-table-column prop="number" label="番号" width="130" />
+              <el-table-column prop="parent" label="目录" min-width="200" show-overflow-tooltip />
+            </el-table>
+          </el-card>
+        </el-col>
+        <el-col :span="15">
+          <el-card v-if="nfoCur">
+            <template #header>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span>编辑 {{ nfoCur.number }}.nfo</span>
+                <div>
+                  <el-button size="small" type="primary" @click="saveNfo">保存</el-button>
+                  <el-button size="small" type="danger" @click="delNfo">删除</el-button>
+                </div>
+              </div>
+            </template>
+            <el-form label-width="70px" size="small">
+              <el-form-item label="标题"><el-input v-model="nfoForm.title" /></el-form-item>
+              <el-form-item label="番号"><el-input v-model="nfoForm.number" /></el-form-item>
+              <el-form-item label="年份"><el-input v-model="nfoForm.year" style="width:120px" /></el-form-item>
+              <el-form-item label="发行"><el-input v-model="nfoForm.release" style="width:200px" /></el-form-item>
+              <el-form-item label="片商"><el-input v-model="nfoForm.studio" /></el-form-item>
+              <el-form-item label="简介"><el-input v-model="nfoForm.outline" type="textarea" :rows="3" /></el-form-item>
+            </el-form>
+          </el-card>
+          <el-empty v-else description="从左侧选择一个 nfo 编辑" />
+        </el-col>
+      </el-row>
+    </el-tab-pane>
+
     <!-- ============ 工具 ============ -->
     <el-tab-pane label="工具" name="tools">
       <ToolsView />
@@ -330,6 +373,11 @@ function syncFailures() {
   }
 }
 const toolTasks2 = ref<any[]>([])
+const nfoPath = ref('/media')
+const nfoFilter = ref('')
+const nfoItems = ref<any[]>([])
+const nfoCur = ref<any>(null)
+const nfoForm = reactive({ title: '', number: '', year: '', release: '', studio: '', outline: '' })
 async function ctxForceScrape() {
   menu.show = false
   if (!menu.file) return
@@ -345,6 +393,36 @@ async function ctxOpenDir() {
 
 onMounted(() => { loadFiles(); refresh(); timer = window.setInterval(refresh, 2500) })
 onUnmounted(() => window.clearInterval(timer))
+
+async function loadNfo() {
+  const r = await http.get('/nfo/list', { params: { path: nfoPath.value, filter_text: nfoFilter.value } })
+  if (r.data.ok) nfoItems.value = r.data.items
+}
+async function readNfo(row: any) {
+  const r = await http.get('/nfo/read', { params: { path: row.path } })
+  if (!r.data.ok) return
+  nfoCur.value = { number: r.data.number, path: row.path }
+  nfoForm.title = r.data.fields?.title ?? ''
+  nfoForm.number = r.data.fields?.number ?? r.data.number
+  nfoForm.year = r.data.fields?.year ?? ''
+  nfoForm.release = r.data.fields?.release ?? ''
+  nfoForm.studio = r.data.fields?.studio ?? ''
+  nfoForm.outline = r.data.fields?.outline ?? ''
+}
+async function saveNfo() {
+  if (!nfoCur.value) return
+  const r = await http.post('/nfo/patch', { path: nfoCur.value.path, ...nfoForm })
+  alert(r.data.ok ? '已保存' : r.data.error)
+  loadNfo()
+}
+async function delNfo() {
+  if (!nfoCur.value) return
+  if (!confirm('删除该 nfo？')) return
+  const r = await http.post('/nfo/delete', { path: nfoCur.value.path })
+  alert(r.data.ok ? '已删除' : r.data.error)
+  nfoCur.value = null
+  loadNfo()
+}
 </script>
 
 <style scoped>
