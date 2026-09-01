@@ -1,0 +1,33 @@
+# ---- Python ----
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+
+# ---- 前端 ----
+webui/node_modules/
+webui/dist/assets/*.map
+
+# ---- 部署 ----
+.env
+*.tar.gz
+*.zip
+release-*/
+
+# ---- 系统 ----
+.DS_Store
+crash/
+MDCx.config
+config.json.monkeycode/
+.githooks/
+.github/workflows/ci.yaml
+.github/workflows/release.yml
+.github/workflows/build-windows.yml
+.github/workflows/package-trawl.yml
+.github/workflows/check-trawl-update.yml
+.github/workflows/close-stale-issues.yml

@@ -1,0 +1,4 @@
+# mdcx-web 后端额外依赖（mdcx core 本身不含 web 框架）
+fastapi>=0.115.0
+uvicorn>=0.30.0
+python-multipart>=0.0.9

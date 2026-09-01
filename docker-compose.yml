@@ -1,0 +1,34 @@
+services:
+  mcdx-docker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/tsg1981gmail/mcdx-docker:latest
+    container_name: mcdx-docker
+    restart: unless-stopped
+    ports:
+      # 网页访问入口：http://<主机IP>:33333
+      - "${MDCX_WEB_PORT:-33333}:8000"
+    volumes:
+      # 数据持久化：配置(config.json)、演员库、缓存
+      - mdcx-data:/data
+      # 媒体挂载区：宿主机目录（见 README），容器内统一为 /media
+      - type: bind
+        source: ${MDCX_SMB_BASE:-/vol1/smb}
+        target: /media
+    environment:
+      - MDCX_DATA_DIR=/data
+      - MDCX_MEDIA_DIR=/media
+      - MDCX_LIBRARY_ROOT=${MDCX_LIBRARY_ROOT:-/media}
+      - MDCX_LOG_LEVEL=${MDCX_LOG_LEVEL:-INFO}
+      - TZ=${TZ:-Asia/Shanghai}
+    shm_size: "128mb"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/system/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  mdcx-data:

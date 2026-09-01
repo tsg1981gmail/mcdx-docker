@@ -1,0 +1,43 @@
+services:
+  mdcx-diy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mdcx-diy:latest
+    container_name: mdcx-diy
+    restart: unless-stopped
+    extra_hosts:
+      # 让容器 nginx 能访问宿主机上的 SMB 管理服务(0.0.0.0:33344)
+      - "host-gateway:host-gateway"
+    ports:
+      # 网页访问入口（noVNC，需账号密码登录）
+      - "${MDCX_WEB_PORT:-33333}:33333"
+    volumes:
+      # 持久化：配置、缓存、输出等用户数据
+      - mdcx-data:/data
+      # 挂载区（自服务）：`sudo mdcx-smb add...` 或网页 /manager/ 挂的共享/文件夹
+      # 自动出现在容器 /media/<名称>。宿主机目录见 .env 的 MDCX_SMB_BASE
+      - type: bind
+        source: ${MDCX_SMB_BASE:-/vol1/smb}
+        target: /media
+        bind:
+          propagation: shared
+    environment:
+      # ---- 网页登录账号密码（权限管理，见 .env）----
+      - MDCX_WEB_USER=${MDCX_WEB_USER:-admin}
+      - MDCX_WEB_PASSWORD=${MDCX_WEB_PASSWORD:-change-me}
+      # ---- 可选 ----
+      - VNC_PASSWORD=${VNC_PASSWORD:-}
+      - SCREEN_W=${SCREEN_W:-1600}
+      - SCREEN_H=${SCREEN_H:-1000}
+      - QT_SCALE_FACTOR=${QT_SCALE_FACTOR:-1}
+    shm_size: "256mb"
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/mdcx-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      start_period: 25s
+      retries: 3
+
+volumes:
+  mdcx-data:
