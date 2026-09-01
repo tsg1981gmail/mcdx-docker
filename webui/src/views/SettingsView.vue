@@ -174,6 +174,17 @@
             <el-input v-model="f.site_custom" type="textarea" :rows="5" placeholder="javbus|https://我的镜像/cist" />
           </el-form-item>
 
+          <el-divider content-position="left">高级功能</el-divider>
+          <el-form-item label="保存日志 / 检查更新">
+            <el-switch v-model="f.save_log" active-text="保存日志" />
+            <el-switch v-model="f.update_check" active-text="检查更新" style="margin-left:12px" />
+          </el-form-item>
+          <el-form-item label="开关（switch_on）">
+            <el-select v-model="f.switch_on" multiple collapse-tags style="width:100%">
+              <el-option v-for="v in SWITCHES" :key="v" :label="v" :value="v" />
+            </el-select>
+          </el-form-item>
+
           <el-divider content-position="left">API Token（留空不改）</el-divider>
           <el-form-item label="theporndb 令牌">
             <el-input v-model="f.theporndb_api_token" type="password" show-password placeholder="已设置则留空" />
@@ -226,10 +237,12 @@ const f = reactive<any>({
   download_files: [], keep_files: [], nfo_include_new: [],
   poster_mark: false, mark_size: 20, site_custom: '',
   theporndb_api_token: '', tmdb_api_key: '',
+  save_log: true, update_check: true, switch_on: [],
 })
 const DL_FILES = ['poster','thumb','fanart','extrafanart','trailer','nfo','extrafanart_extras','extrafanart_copy','theme_videos','ignore_pic_fail','ignore_youma','poster_auto_best','ignore_wuma','ignore_oumei','ignore_fc2','ignore_guochan','ignore_size']
 const KEEP_FILES = ['poster','thumb','fanart','extrafanart','trailer','nfo','extrafanart_copy','theme_videos']
 const NFO_INCLUDE = ['sorttitle','originaltitle','title_cd','outline','plot_','originalplot','outline_no_cdata','release_','releasedate','premiered','country','mpaa','customrating','year','runtime','wanted','score','criticrating','actor','actor_all','actor_tmdbid','director','series','tag','genre','actor_set','series_set','studio','maker','publisher','label','poster','cover','trailer','website']
+const SWITCHES = ['auto_start','auto_exit','rest_scrape','timed_scrape','remain_task','show_dialog_exit','show_dialog_stop_scrape','sort_del','qt_dialog','theporndb_no_hash','hide_dock','passthrough','hide_menu','dark_mode','copy_netdisk_nfo','show_logs','hide_close','hide_mini','hide_none','ipv4_only']
 const siteTexts = reactive<any>({})
 
 async function load() {
@@ -277,6 +290,9 @@ async function load() {
     .map(([k, v]: any) => (v?.custom_url ? `${k}|${v.custom_url}` : '')).filter(Boolean).join('\n')
   f.theporndb_api_token = ''
   f.tmdb_api_key = ''
+  f.save_log = c.save_log !== false
+  f.update_check = c.update_check !== false
+  f.switch_on = [...(c.switch_on || [])]
   for (const g of SITE_GROUPS) siteTexts[g.key] = (c[g.key] || []).join(',')
   json.value = JSON.stringify(c, null, 2)
 }
@@ -325,6 +341,9 @@ async function saveForm() {
     patch.site_configs = siteCustom
     if (f.theporndb_api_token) patch.theporndb_api_token = f.theporndb_api_token
     if (f.tmdb_api_key) patch.tmdb_api_key = f.tmdb_api_key
+    patch.save_log = f.save_log
+    patch.update_check = f.update_check
+    patch.switch_on = f.switch_on
     const r = await api.configPut(patch)
     saveOk.value = r.ok
     saveMsg.value = r.ok ? '已保存' : (r.error || '保存失败')

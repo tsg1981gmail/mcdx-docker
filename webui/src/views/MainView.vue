@@ -49,18 +49,27 @@
           <el-button size="small" type="primary" style="margin-top:8px" :disabled="!fcDirty" @click="saveFieldConfig">保存字段站点优先级</el-button>
         </el-collapse-item>
       </el-collapse>
-        <el-table :data="files" size="small" height="320" @row-contextmenu="onContext" :row-class-name="rowClass">
+        <el-table :data="files" size="small" height="320" @row-contextmenu="onContext" @row-click="onRowClick" :row-class-name="rowClass" highlight-current-row>
           <el-table-column prop="name" label="文件名称" min-width="220" show-overflow-tooltip />
           <el-table-column prop="dir" label="目录" min-width="220" show-overflow-tooltip />
           <el-table-column prop="size_h" label="大小" width="100" />
           <el-table-column prop="mtime" label="修改时间" width="150" />
         </el-table>
         <div v-if="menu.show" class="ctx-menu" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
+          <div class="ctx-item" @click="ctxCopyPath">复制文件路径</div>
           <div class="ctx-item" @click="ctxForceScrape">强制重新刮削（选中文件）</div>
           <div class="ctx-item" @click="ctxOpenDir">加入刮削列表（整目录）</div>
           <div class="ctx-item" @click="menu.show = false">取消</div>
         </div>
       </div>
+
+      <!-- 选中文件信息面板 -->
+      <el-descriptions v-if="selected" :column="4" size="small" border style="margin-bottom:10px">
+        <el-descriptions-item label="文件">{{ selected.name }}</el-descriptions-item>
+        <el-descriptions-item label="路径">{{ selected.dir }}/{{ selected.name }}</el-descriptions-item>
+        <el-descriptions-item label="大小">{{ selected.size_h }}</el-descriptions-item>
+        <el-descriptions-item label="修改时间">{{ selected.mtime }}</el-descriptions-item>
+      </el-descriptions>
 
       <!-- 结果三列表 + 日志 -->
       <el-tabs v-model="resultTab" class="result-tabs">
@@ -173,6 +182,7 @@ const failItems = ref<any[]>([])
 const remainItems = ref<any[]>([])
 const logLines = ref<string[]>([])
 const menu = reactive({ show: false, x: 0, y: 0, file: null as any })
+const selected = ref<any>(null)
 const fcRows = ref<any[]>([])
 const fcDirty = ref(false)
 const netItems = ref<any[]>([])
@@ -266,6 +276,23 @@ function onContext(row: any, _col: any, e: MouseEvent) {
   menu.show = true
   menu.x = e.clientX
   menu.y = e.clientY
+}
+function onRowClick(row: any) {
+  selected.value = row
+}
+async function ctxCopyPath() {
+  const p = `${menu.file?.dir}/${menu.file?.name}`
+  try {
+    await navigator.clipboard.writeText(p)
+  } catch {
+    const ta = document.createElement('textarea')
+    ta.value = p
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    ta.remove()
+  }
+  menu.show = false
 }
 function closeMenu() { menu.show = false }
 async function checkNet() {
