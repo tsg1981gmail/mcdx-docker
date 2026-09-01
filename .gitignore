@@ -23,7 +23,8 @@ release-*/
 .DS_Store
 crash/
 MDCx.config
-config.json.monkeycode/
+config.json
+.monkeycode/
 .githooks/
 .github/workflows/ci.yaml
 .github/workflows/release.yml
