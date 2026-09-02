@@ -388,6 +388,9 @@ const UI = {
         window.addEventListener('msfullscreenchange', UI.updateFullscreenButton);
     },
 
+        mdcxZoomInitControls();
+    },
+
 /* ------^-------
  * /EVENT HANDLERS
  * ==============
@@ -1774,5 +1777,42 @@ const LINGUAS = ["cs", "de", "el", "es", "fr", "it", "ja", "ko", "nl", "pl", "pt
 l10n.setup(LINGUAS, "app/locale/")
     .catch(err => Log.Error("Failed to load translations: " + err))
     .then(UI.prime);
+
+
+// ===== mdcx 定制：工具栏缩放（本地缩放画布，不发送远程）=====
+function mdcxZoomUpdate() {
+    const el = document.getElementById('noVNC_zoom_pct');
+    if (!el || !UI.rfb) return;
+    const d = UI.rfb._display;
+    if (d) el.textContent = Math.round((d.scale || 1) * 100) + '%';
+}
+function mdcxZoomStep(f) {
+    if (!UI.rfb) return;
+    const d = UI.rfb._display;
+    if (!d) return;
+    const s = Math.min(5, Math.max(0.2, (d.scale || 1) * f));
+    d.scale = s;
+    mdcxZoomUpdate();
+}
+function mdcxZoomFit() {
+    if (!UI.rfb) return;
+    const d = UI.rfb._display;
+    const scr = document.getElementById('noVNC_container');
+    if (!d || !scr) return;
+    d.autoscale(scr.clientWidth, scr.clientHeight);
+    mdcxZoomUpdate();
+}
+function mdcxZoomReset() {
+    if (!UI.rfb) return;
+    UI.rfb._display.scale = 1;
+    mdcxZoomUpdate();
+}
+function mdcxZoomInitControls() {
+    const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
+    on('noVNC_zoom_in', () => mdcxZoomStep(1.2));
+    on('noVNC_zoom_out', () => mdcxZoomStep(1 / 1.2));
+    on('noVNC_zoom_fit', mdcxZoomFit);
+    on('noVNC_zoom_reset', mdcxZoomReset);
+}
 
 export default UI;

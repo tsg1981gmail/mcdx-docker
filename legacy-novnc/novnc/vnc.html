@@ -144,6 +144,17 @@
                 id="noVNC_fullscreen_button" class="noVNC_button noVNC_hidden"
                 title="Full Screen">
 
+            <!-- Zoom controls (mdcx 定制) -->
+            <button id="noVNC_zoom_out" class="noVNC_button" title="缩小"
+                style="color:#fff;background:none;border:0;font-size:24px;line-height:1;padding:2px 10px;cursor:pointer;font-family:system-ui;touch-action:manipulation;">－</button>
+            <span id="noVNC_zoom_pct" style="color:#333;font:13px system-ui;min-width:44px;text-align:center;">100%</span>
+            <button id="noVNC_zoom_in" class="noVNC_button" title="放大"
+                style="color:#fff;background:none;border:0;font-size:24px;line-height:1;padding:2px 10px;cursor:pointer;font-family:system-ui;touch-action:manipulation;">＋</button>
+            <button id="noVNC_zoom_fit" class="noVNC_button" title="自适应窗口"
+                style="color:#fff;background:none;border:0;font-size:14px;line-height:1;padding:2px 9px;cursor:pointer;font-family:system-ui;touch-action:manipulation;">适</button>
+            <button id="noVNC_zoom_reset" class="noVNC_button" title="100%"
+                style="color:#fff;background:none;border:0;font-size:13px;line-height:1;padding:2px 9px;cursor:pointer;font-family:system-ui;touch-action:manipulation;">100</button>
+
             <!-- Settings -->
             <input type="image" alt="Settings" src="app/images/settings.svg"
                 id="noVNC_settings_button" class="noVNC_button"
@@ -337,6 +348,5 @@
         <source src="app/sounds/bell.oga" type="audio/ogg">
         <source src="app/sounds/bell.mp3" type="audio/mpeg">
     </audio>
-     <script src="mdcx-zoom.js"></script>
-  </body>
+   </body>
 </html>
