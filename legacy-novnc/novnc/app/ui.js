@@ -386,8 +386,6 @@ const UI = {
         window.addEventListener('mozfullscreenchange', UI.updateFullscreenButton);
         window.addEventListener('webkitfullscreenchange', UI.updateFullscreenButton);
         window.addEventListener('msfullscreenchange', UI.updateFullscreenButton);
-    },
-
         mdcxZoomInitControls();
     },
 
