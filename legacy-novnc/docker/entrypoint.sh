@@ -92,6 +92,16 @@ websockify 127.0.0.1:"$WS_PORT" localhost:"$VNC_PORT" &
 # ============ 带登录认证的 Web 入口 (nginx, 对外 33333) ============
 nginx -g "daemon off;" &
 
+# ============ 进程看门狗：核心服务掉线自动拉起，防止“页面一直在加载” ============
+(
+  while : ; do
+    pgrep -f "Xvfb :99" >/dev/null || { echo "[mdcx] Xvfb 掉线，重新拉起"; Xvfb :99 -screen 0 "${SCREEN_W}x${SCREEN_H}x24" -nolisten tcp -ac >/dev/null 2>&1 & sleep 1; }
+    pgrep -f "x11vnc -display :99" >/dev/null || { echo "[mdcx] x11vnc 掉线，重新拉起"; "${VNC_ARGS[@]}" >/dev/null 2>&1 & }
+    pgrep -f "websockify 127.0.0.1" >/dev/null || { echo "[mdcx] websockify 掉线，重新拉起"; websockify 127.0.0.1:"$WS_PORT" localhost:"$VNC_PORT" >/dev/null 2>&1 & }
+    sleep 15
+  done
+) &
+
 # ============ 主应用 (Qt, 前台运行) ============
 su mdcx -s /bin/bash -c "cd /app && QT_SCALE_FACTOR=\${QT_SCALE_FACTOR:-1} exec python3 main.py" &
 APP_PID=$!
