@@ -20,6 +20,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         xvfb x11vnc novnc websockify \
     && rm -rf /var/lib/apt/lists/*
 
+# 升级 noVNC 到 1.5.0：内置双指捏合缩放、更好的缩放控件（旧 Debian 1.1.0 无触控缩放）。覆盖系统包。
+COPY novnc/ /usr/share/novnc/
+
 WORKDIR /app
 
 # 安装 Python 依赖（pyproject.toml 固定版本，均为 manylinux wheel）

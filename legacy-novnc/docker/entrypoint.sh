@@ -3,8 +3,8 @@ set -euo pipefail
 
 # ============ 配置 ============
 export DISPLAY="${DISPLAY:-:99}"
-SCREEN_W="${SCREEN_W:-1600}"
-SCREEN_H="${SCREEN_H:-1000}"
+SCREEN_W="${SCREEN_W:-1920}"
+SCREEN_H="${SCREEN_H:-1080}"
 VNC_PORT="${VNC_PORT:-5900}"
 # websockify 只监听容器内回环，对外一律走 nginx(33333) 且要求登录
 WS_PORT="${WS_PORT:-5901}"
@@ -45,6 +45,32 @@ cleanup() {
   wait 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
+
+# ============ 小屏友好首页：自动带缩放进入 noVNC ============
+# NOVNC_SCALE=fit 自适应窗口 / 0.5~1.5 固定比例 / 空=默认。
+# 另附 noVNC 缩放操作提示（底部工具栏“缩放”菜单；Ctrl+Alt+滚轮即时缩放）。
+NOVNC_SCALE="${NOVNC_SCALE:-fit}"
+cat > /usr/share/novnc/index.html <<HTML
+<!DOCTYPE html>
+<html lang="zh">
+<head><meta charset="utf-8">
+<meta http-equiv="refresh" content="0;url=/vnc.html?scale=${NOVNC_SCALE}&autoconnect=1">
+<title>mdcx-diy 桌面</title></head>
+<body style="font-family:system-ui;background:#111;color:#ddd;display:flex;flex-direction:column;align-items:center;gap:14px;padding:80px 20px">
+<h2>正在进入原版桌面界面…</h2>
+<p>缩放方式（进入后任意时刻可用）：
+  <b>双指捏合</b>（触控板/触摸屏）｜底部工具栏「缩放/Local Scaling」按钮｜<b>Ctrl+Alt+滚轮</b>
+</p>
+<p style="font-size:13px;color:#999">选中文字/输入框时同样可缩放（按钮与捏合由浏览器处理，不会被界面抢走）。</p>
+<p>初始缩放：${NOVNC_SCALE}
+  <a href="/vnc.html?scale=fit&autoconnect=1">自适应</a> ·
+  <a href="/vnc.html?scale=1.0&autoconnect=1">100%</a> ·
+  <a href="/vnc.html?scale=0.8&autoconnect=1">80%</a>
+</p>
+<p><a href="/vnc.html?scale=${NOVNC_SCALE}&autoconnect=1">手动进入</a></p>
+</body>
+</html>
+HTML
 
 # ============ 虚拟显示 (Xvfb) ============
 Xvfb :99 -screen 0 "${SCREEN_W}x${SCREEN_H}x24" -nolisten tcp -ac &

@@ -28,8 +28,11 @@ services:
       - MDCX_WEB_PASSWORD=${MDCX_WEB_PASSWORD:-change-me}
       # ---- 可选 ----
       - VNC_PASSWORD=${VNC_PASSWORD:-}
-      - SCREEN_W=${SCREEN_W:-1600}
-      - SCREEN_H=${SCREEN_H:-1000}
+      # 虚拟屏幕分辨率（调大=桌面更大，配合浏览器缩放即可看清）
+      - SCREEN_W=${SCREEN_W:-1920}
+      - SCREEN_H=${SCREEN_H:-1080}
+      # noVNC 初始缩放：fit 自适应窗口（推荐小屏）| 具体比例如 0.8 / 1.0
+      - NOVNC_SCALE=${NOVNC_SCALE:-fit}
       - QT_SCALE_FACTOR=${QT_SCALE_FACTOR:-1}
     shm_size: "256mb"
     healthcheck:
