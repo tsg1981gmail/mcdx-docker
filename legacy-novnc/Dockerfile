@@ -3,11 +3,21 @@ FROM python:3.13-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
+    PIP_RETRIES=5 \
+    PIP_TIMEOUT=60 \
+    HTTP_PROXY= \
+    HTTPS_PROXY= \
+    ALL_PROXY= \
+    NO_PROXY=
 
 # Qt6/xcb 运行库 + 虚拟显示/VNC/noVNC + 认证代理(nginx) + 中文字体 + 工具
 # libqt6gui6：其依赖拉齐 Qt xcb 平台插件所需的全部 libxcb-* 系统库
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# 使用清华 Debian 源（默认源在部分网络环境不可达）
+RUN rm -f /etc/apt/sources.list.d/debian.sources && \
+    printf 'Types: deb\nURIs: https://mirrors.tuna.tsinghua.edu.cn/debian\nSuites: trixie trixie-updates\nComponents: main contrib non-free non-free-firmware\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\n' > /etc/apt/sources.list.d/debian.sources && \
+    apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl tini openssl procps \
         nginx-light \
         libqt6gui6 \
